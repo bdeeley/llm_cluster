@@ -1,0 +1,17 @@
+[Unit]
+Description=LLM Node First-Boot Setup (NVIDIA + Ollama + exo)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/llm-node-setup-done
+
+[Service]
+Type=oneshot
+ExecStart=/opt/node-setup.sh
+ExecStartPost=/bin/touch /var/lib/llm-node-setup-done
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

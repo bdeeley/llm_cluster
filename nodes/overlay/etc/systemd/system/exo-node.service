@@ -1,0 +1,14 @@
+[Unit]
+Description=exo Distributed LLM Node
+After=network-online.target llm-node-setup.service ollama-node.service
+Wants=network-online.target
+ConditionPathExists=/opt/exo-env/bin/exo
+
+[Service]
+EnvironmentFile=/etc/llm-node.conf
+ExecStart=/opt/exo-env/bin/exo --node-id=${NODE_HOSTNAME} --priority=${EXO_PRIORITY}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

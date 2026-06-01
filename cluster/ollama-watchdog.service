@@ -1,0 +1,19 @@
+[Unit]
+Description=Ollama Cluster Node Watchdog
+Documentation=file:///home/bdeeley/test/cluster/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/bdeeley/test/cluster/watchdog.sh
+Restart=always
+RestartSec=10
+# Root needed to update /etc/hosts
+User=root
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ollama-watchdog
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,61 @@
+# Project Rules for Cline
+
+## Projects in this workspace
+
+### DOS Menu System (`menu/`)
+A DOS/Win95/98 batch-file menu for swapping `CONFIG.SYS` / `AUTOEXEC.BAT`,
+listing games, and loading SoundBlaster settings.
+
+**Layout:**
+- `menu/menu.bat` — main menu (goto-based, labels in CAPS)
+- `soundblaster.bat` — SB environment variable helper
+- `CONFIG.SYS`, `AUTOEXEC.BAT` — active DOS config files (workspace root)
+- `new_config.sys`, `new_autoexec.bat` — staged replacements
+- `games/` — `.bat` launchers for individual games
+
+**Testing with DOSBox:**
+DOSBox is installed at `/usr/bin/dosbox`. To run the menu from the workspace root:
+```bash
+dosbox -c "MOUNT C /home/bdeeley/test" -c "C:" -c "C:\menu\menu.bat"
+```
+Always use the absolute Linux path for MOUNT. Never use `.\` or relative paths in the MOUNT command.
+
+**Conventions:**
+- Batch file style: `@echo off`, UPPERCASE labels, `goto MENU` loop
+- Paths in menu.bat are relative (`..\` prefix from `menu/` subdir, e.g. `..\CONFIG.SYS`)
+- Keep menus numbered and sequential; add new options before `:EXIT`
+- CONFIG.SYS, AUTOEXEC.BAT, new_config.sys, new_autoexec.bat, soundblaster.bat all live in the workspace root
+
+---
+
+### LLM Cluster (`cluster/`)
+Three-node Ollama cluster: local maxpower + node-a (RTX 3090) + node-b (RTX 4070).
+
+**Endpoints:**
+- `http://localhost:11434` — local Ollama only (all existing Cline model variants, unchanged)
+- `http://localhost:11435` — cluster proxy (routes to local + remote by model-name prefix)
+
+**Model naming on the proxy (:11435):**
+- All existing `*-cline` models (no prefix) → local, works as before
+- `node-a/<model>` → RTX 3090 node (24GB VRAM, high priority)
+- `node-b/<model>` → RTX 4070 node (12GB VRAM, lower priority)
+
+**Key scripts:**
+- `cluster/setup.sh`       — one-time setup: `sudo ./cluster/setup.sh`
+- `cluster-status`         — health check across all nodes (installed to /usr/local/bin)
+- `/etc/ollama-cluster/cluster.conf` — edit to change node hostnames/IPs
+- `/etc/ollama-cluster/nodes.json`   — auto-updated by watchdog (do not hand-edit)
+
+**Systemd services (managed by setup.sh):**
+- `ollama-proxy`    — cluster proxy on :11435
+- `ollama-watchdog` — probes remote nodes every 30s, updates nodes.json + /etc/hosts
+
+**Remote node hostname defaults:** `llm-node-a`, `llm-node-b`
+Edit `/etc/ollama-cluster/cluster.conf` with actual IPs once nodes are booted.
+
+---
+
+## General rules
+- Do not create files outside this workspace without asking.
+- Prefer editing existing files over creating new ones.
+- When unsure about scope, ask before making structural changes.

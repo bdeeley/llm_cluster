@@ -1,0 +1,20 @@
+
+╔══════════════════════════════════════════════════════════════╗
+║           LLM Inference Node — Debian Live                   ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  This machine is running as a distributed LLM inference      ║
+║  node. On first boot, it will:                               ║
+║                                                              ║
+║   1. Build the NVIDIA GPU driver (takes ~3 min)              ║
+║   2. Start Ollama on port 11434 (all interfaces)             ║
+║   3. Start the exo distributed inference daemon              ║
+║   4. Pull a starter model (qwen2.5-coder:7b)                 ║
+║                                                              ║
+║  Run  node-status  to see GPU, Ollama, and network info.     ║
+║  Logs: journalctl -u llm-node-setup -f                       ║
+║                                                              ║
+║  SSH password (root): llmnode                                ║
+║  Change it:  passwd root                                      ║
+╚══════════════════════════════════════════════════════════════╝
+

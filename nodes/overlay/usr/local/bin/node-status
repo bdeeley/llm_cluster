@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# /usr/local/bin/node-status
+# Quick health check — run this on any node to see its status.
+source /etc/llm-node.conf 2>/dev/null || true
+
+echo ""
+echo "══════════════════════════════════════════"
+echo "  LLM Node: ${NODE_HOSTNAME:-unknown}"
+echo "  GPU:      ${GPU_MODEL:-unknown} (${GPU_VRAM_GB:-?} GB)"
+echo "══════════════════════════════════════════"
+echo ""
+echo "── NVIDIA ──────────────────────────────"
+nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total \
+    --format=csv,noheader 2>/dev/null || echo "  nvidia-smi unavailable"
+
+echo ""
+echo "── Ollama ──────────────────────────────"
+if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+    echo "  Status:  running"
+    curl -sf http://localhost:11434/api/tags | python3 -c \
+        "import json,sys; [print('  Model: '+m['name']) for m in json.load(sys.stdin).get('models',[])]"
+else
+    echo "  Status:  NOT RUNNING"
+fi
+
+echo ""
+echo "── exo ─────────────────────────────────"
+systemctl is-active exo-node.service &>/dev/null && echo "  Status:  running" || echo "  Status:  NOT RUNNING"
+
+echo ""
+echo "── Network ─────────────────────────────"
+IP=$(hostname -I | awk '{print $1}')
+echo "  IP:      ${IP}"
+echo "  Ollama:  http://${IP}:11434"
+echo "  SSH:     ssh root@${IP}"
+echo ""
