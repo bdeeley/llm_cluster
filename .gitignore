@@ -1,0 +1,31 @@
+# Log files
+*.log
+
+# Large binary/cache files
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# System files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# OS-specific
+Thumbs.db
+.trash/
