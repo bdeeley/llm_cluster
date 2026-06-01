@@ -117,7 +117,7 @@ Environment="CPLUS_INCLUDE_PATH=/usr/include"
 Environment="LD_LIBRARY_PATH=/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cublas/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cuda_nvrtc/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cufft/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/nccl/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/nvjitlink/lib"
 Environment="OVERRIDE_MEMORY_MB=24000"
 Environment="EXO_NODE_ID_KEYPAIR_PATH=/home/bdeeley/.config/exo/node_id-primary.keypair"
-ExecStart=/home/bdeeley/.local/bin/uv run exo --force-master --api-port 52415 --libp2p-port 5678 --bootstrap-peers /ip4/$REMOTE_3060_IP/tcp/5679,/ip4/$REMOTE_3090_IP/tcp/5679
+ExecStart=/home/bdeeley/.local/bin/uv run exo --force-master --api-port 52415 --libp2p-port 5678 --bootstrap-peers /ip4/127.0.0.1/tcp/5678,/ip4/127.0.0.1/tcp/5680,/ip4/$REMOTE_3060_IP/tcp/5679,/ip4/$REMOTE_3090_IP/tcp/5679
 
 Restart=on-failure
 RestartSec=10
@@ -129,7 +129,7 @@ EOF
 sudo -n tee /etc/systemd/system/exo-worker.service << EOF
 [Unit]
 Description=exo worker node (RTX 3060 GPU0)
-After=network-online.target
+After=network-online.target exo.service
 Wants=network-online.target
 
 [Service]
@@ -145,7 +145,7 @@ Environment="CPLUS_INCLUDE_PATH=/usr/include"
 Environment="LD_LIBRARY_PATH=/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cublas/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cuda_nvrtc/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cufft/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/nccl/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/nvjitlink/lib"
 Environment="OVERRIDE_MEMORY_MB=8000"
 Environment="EXO_NODE_ID_KEYPAIR_PATH=/home/bdeeley/.config/exo/node_id-worker.keypair"
-ExecStart=/home/bdeeley/.local/bin/uv run exo --no-master-candidate --api-port 52416 --libp2p-port 5680 --bootstrap-peers /ip4/$MASTER_IP/tcp/5678,/ip4/$REMOTE_3060_IP/tcp/5679,/ip4/$REMOTE_3090_IP/tcp/5679
+ExecStart=/home/bdeeley/.local/bin/uv run exo --no-master-candidate --api-port 52416 --libp2p-port 5680 --bootstrap-peers /ip4/127.0.0.1/tcp/5678,/ip4/127.0.0.1/tcp/5680,/ip4/$REMOTE_3060_IP/tcp/5679,/ip4/$REMOTE_3090_IP/tcp/5679
 
 Restart=on-failure
 RestartSec=10
@@ -200,7 +200,7 @@ Environment="CPLUS_INCLUDE_PATH=/usr/include"
 Environment="LD_LIBRARY_PATH=/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cublas/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cuda_nvrtc/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cufft/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/nccl/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/nvjitlink/lib"
 Environment="OVERRIDE_MEMORY_MB=24000"
 Environment="EXO_NODE_ID_KEYPAIR_PATH=/home/bdeeley/.config/exo/node_id-theplague.keypair"
-ExecStart=/home/bdeeley/.local/bin/uv run exo --api-port 52415 --libp2p-port 5679 --bootstrap-peers /ip4/$MASTER_IP/tcp/5678,/ip4/$MASTER_IP/tcp/5680,/ip4/$REMOTE_3090_IP/tcp/5679
+ExecStart=/home/bdeeley/.local/bin/uv run exo --api-port 52415 --libp2p-port 5679 --bootstrap-peers /ip4/$MASTER_IP/tcp/5678,/ip4/$MASTER_IP/tcp/5680,/ip4/$REMOTE_3060_IP/tcp/5679,/ip4/$REMOTE_3090_IP/tcp/5679
 
 Restart=on-failure
 RestartSec=10
@@ -232,7 +232,7 @@ Environment="CPLUS_INCLUDE_PATH=/usr/include"
 Environment="LD_LIBRARY_PATH=/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cublas/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cuda_nvrtc/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/cufft/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/nccl/lib:/home/bdeeley/exo/.venv/lib/python3.13/site-packages/nvidia/nvjitlink/lib"
 Environment="OVERRIDE_MEMORY_MB=24000"
 Environment="EXO_NODE_ID_KEYPAIR_PATH=/home/bdeeley/.config/exo/node_id-debian.keypair"
-ExecStart=/home/bdeeley/.local/bin/uv run exo --api-port 52415 --libp2p-port 5679 --bootstrap-peers /ip4/$MASTER_IP/tcp/5678,/ip4/$MASTER_IP/tcp/5680,/ip4/$REMOTE_3060_IP/tcp/5679
+ExecStart=/home/bdeeley/.local/bin/uv run exo --api-port 52415 --libp2p-port 5679 --bootstrap-peers /ip4/$MASTER_IP/tcp/5678,/ip4/$MASTER_IP/tcp/5680,/ip4/$REMOTE_3060_IP/tcp/5679,/ip4/$REMOTE_3090_IP/tcp/5679
 
 Restart=on-failure
 RestartSec=10
