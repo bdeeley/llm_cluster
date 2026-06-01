@@ -48,7 +48,7 @@ echo "  ✓ Local cleanup complete"
 echo ""
 
 # ============================================================================
-# PHASE 2: THEPLAGUE CLEANUP (RTX 4090)
+# PHASE 2: THEPLAGUE CLEANUP (RTX 3060)
 # ============================================================================
 echo "PHASE 2: REMOTE CLEANUP - Theplague (${REMOTE_THEPLAGUE_IP})"
 echo "═══════════════════════════════════════════════════════════════════"

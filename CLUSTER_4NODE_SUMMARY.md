@@ -21,7 +21,7 @@
    - Status: ✅ Running
 
 3. **theplague (Remote Node 1)** - 172.16.0.175
-   - GPU: RTX 4090 24GB
+   - GPU: RTX 3060 12GB
    - Role: Follower
    - libp2p Port: 5679
    - API Port: 52415

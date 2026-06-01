@@ -23,7 +23,7 @@ A distributed EXO inference cluster has been successfully deployed and tested wi
 
 ### Theplague (Worker)
 - **Node ID**: `12D3KooWPyCoA1ztta1GAX77g8FAniue6kxyn4QjLrARsFsUA93e`
-- **Role**: Remote Worker (RTX 4090)
+- **Role**: Remote Worker (RTX 3060)
 - **Connection**: SSH over network (172.16.0.174)
 - **API Port**: 52415
 - **P2P Port**: 5679
@@ -34,10 +34,10 @@ A distributed EXO inference cluster has been successfully deployed and tested wi
 |------|-----|------|--------|
 | maxpower | RTX 3060 (GPU0) | 12 GB | ✅ Active |
 | maxpower | RTX 3090 (GPU1) | 24 GB | ✅ Active (Master) |
-| theplague | RTX 4090 | 24 GB | ✅ Active |
+| theplague | RTX 3060 | 12 GB | ✅ Active |
 | debian | RTX 3090 | 24 GB | ⚠️ VRAM conflict (Quadro) |
 
-**Total Available VRAM**: 84 GB (3 nodes), potential 108 GB with Quadro resolution
+**Total Available VRAM**: 72 GB (3 nodes), potential 96 GB with Quadro resolution
 
 **Note**: Quadro currently using VRAM that would be allocated to debian node. Requires driver/resource allocation resolution.
 
@@ -185,7 +185,7 @@ Successfully ran a distributed inference request across the 3-node cluster:
 - Temperature: 0.7
 - Observed GPU Utilization:
   - maxpower GPU1 (Master): 12-40% utilization
-  - theplague RTX 4090: 4-18% utilization
+  - theplague RTX 3060: 4-18% utilization
   - Response time: ~60-120 seconds
   
 The model successfully distributed computation across multiple nodes and GPUs during inference.

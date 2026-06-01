@@ -23,7 +23,7 @@
 
 **Features:**
 - Phase 1: Local cleanup (Master + Worker on maxpower)
-- Phase 2: Remote cleanup (Theplague RTX 4090)
+- Phase 2: Remote cleanup (Theplague RTX 3060)
 - Phase 3: Remote cleanup (Debian RTX 3090)  
 - Phase 4: Verification (confirms all processes dead)
 - Removes: Event logs, caches, pidfiles, keypair state

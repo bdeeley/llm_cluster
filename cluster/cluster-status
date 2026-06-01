@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Cluster Status — shows local + remote node health and available models
+# Usage: cluster-status [--models]
+
+set -euo pipefail
+
+NODES_FILE="/etc/ollama-cluster/nodes.json"
+SHOW_MODELS="${1:-}"
+
+RED='\033[0;31m'
+GRN='\033[0;32m'
+YLW='\033[1;33m'
+BLD='\033[1m'
+RST='\033[0m'
+
+probe() {
+    local url="$1"
+    curl -sf --connect-timeout 3 --max-time 5 "${url}/api/tags" 2>/dev/null
+}
+
+print_node() {
+    local label="$1" url="$2" color="${3:-$GRN}"
+    local tags
+    if tags=$(probe "$url"); then
+        local count
+        count=$(echo "$tags" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('models',[])))")
+        printf "${BLD}${color}  %-18s${RST} ${GRN}ONLINE${RST}  %s models  (%s)\n" \
+               "$label" "$count" "$url"
+        if [[ "$SHOW_MODELS" == "--models" ]]; then
+            echo "$tags" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for m in sorted(d.get('models',[]), key=lambda x: x['name']):
+    size = m.get('size', 0)
+    gb = f'{size/1e9:.1f}GB' if size else ''
+    print(f'    {m[\"name\"]:50s} {gb}')
+"
+        fi
+    else
+        printf "${BLD}  %-18s${RST} ${RED}OFFLINE${RST}  (%s)\n" "$label" "$url"
+    fi
+}
+
+echo
+printf "${BLD}%-20s${RST}\n" "=== Ollama Cluster Status ==="
+echo
+
+# ── Local ──────────────────────────────────────────────────────────────────────
+printf "${BLD}LOCAL (maxpower)${RST}  2× RTX 3060  24GB VRAM  [Cline models]\n"
+print_node "localhost:11434" "http://localhost:11434" "$BLD"
+
+# ── Proxy ──────────────────────────────────────────────────────────────────────
+echo
+printf "${BLD}CLUSTER PROXY${RST}  (route remote models via :11435)\n"
+if curl -sf --connect-timeout 2 "http://localhost:11435/api/tags" -o /dev/null 2>/dev/null; then
+    printf "  %-18s ${GRN}RUNNING${RST}\n" "proxy :11435"
+else
+    printf "  %-18s ${YLW}NOT RUNNING${RST}  — run: sudo systemctl start ollama-proxy\n" "proxy :11435"
+fi
+
+# ── Remote nodes ───────────────────────────────────────────────────────────────
+echo
+printf "${BLD}REMOTE NODES${RST}\n"
+
+if [[ -f "$NODES_FILE" ]]; then
+    python3 - <<'PYEOF'
+import json, sys
+with open("/etc/ollama-cluster/nodes.json") as f:
+    nodes = json.load(f)
+for name, url in nodes.items():
+    if name != "local":
+        print(f"{name}  {url}")
+PYEOF
+else
+    echo "  (no nodes.json — watchdog not yet run)"
+fi | while IFS='  ' read -r name url; do
+    [[ -z "$name" ]] && continue
+    conf_label="$name"
+    case "$name" in
+        node-a) conf_label="node-a  RTX 3090  24GB" ;;
+        node-b) conf_label="node-b  RTX 4070  12GB" ;;
+    esac
+    print_node "$conf_label" "$url"
+done
+
+echo

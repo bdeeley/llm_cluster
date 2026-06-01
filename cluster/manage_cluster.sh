@@ -183,7 +183,7 @@ echo "[3/4] Starting Remote Nodes via systemd..."
 echo "  Deploying exo.service to theplague..."
 ssh -n $REMOTE_3060_FQDN "sudo tee /etc/systemd/system/exo.service > /dev/null" << 'THEPLAGUE_SERVICE'
 [Unit]
-Description=exo distributed LLM inference (RTX 4090)
+Description=exo distributed LLM inference (RTX 3060)
 After=network-online.target
 Wants=network-online.target
 
@@ -321,7 +321,7 @@ echo ""
 echo "Cluster Summary:"
 echo "  Master:  maxpower (172.16.0.174, RTX 3090 GPU1)"
 echo "  Worker:  maxpower local (172.16.0.174, RTX 3060 GPU0)"  
-echo "  Remote1: theplague (172.16.0.175, RTX 4090)"
+echo "  Remote1: theplague (172.16.0.175, RTX 3060)"
 echo "  Remote2: debian (172.16.0.14, RTX 3090)"
 echo ""
 echo "API Endpoint: http://localhost:52415"
