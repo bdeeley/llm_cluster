@@ -146,5 +146,5 @@ fi
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║  CLEANUP COMPLETE - Safe to start cluster                     ║"
-echo "║  Next: bash cluster/manage_cluster.sh start                   ║"
+echo "║  Next: ./cluster-control.sh start                             ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
