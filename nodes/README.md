@@ -62,7 +62,7 @@ The machine is ready when you see `NVIDIA driver OK` in the output.
 If the custom node ISO does not boot, use a stock Debian or Ubuntu live USB and
 replay the node bootstrap from shared storage.
 
-The current recovery path is [nodes/bootstrap-standard-liveusb.sh](/home/bdeeley/test/nodes/bootstrap-standard-liveusb.sh).
+The current recovery path is `nodes/bootstrap-standard-liveusb.sh`.
 It assumes these are already mounted in the live session:
 
 - `/NVME` for persistent node state and apt cache
@@ -94,7 +94,7 @@ build a working custom image.
 ## 3090 exo bootstrap
 
 For the Debian live USB on the RTX 3090 host, the second-stage exo bootstrap is
-[nodes/bootstrap-exo-3090-liveusb.sh](/home/bdeeley/test/nodes/bootstrap-exo-3090-liveusb.sh).
+`nodes/bootstrap-exo-3090-liveusb.sh`.
 
 It layers on top of the `/NVME` base bootstrap and does the exo-specific work:
 

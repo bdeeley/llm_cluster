@@ -211,7 +211,9 @@ echo "  tail -f $LOG_DIR/*.log"
 echo ""
 echo -e "${YELLOW}To test model loading on this node manually:${NC}"
 if [ "$NODE_NAME" = "master" ] || [ "$NODE_NAME" = "local-master" ]; then
-  echo "  curl -X POST http://localhost:52415/place_instance -H 'Content-Type: application/json' -d '{\"model_id\": \"mlx-community/Llama-3.1-Nemotron-Nano-4B-v1.1-8bit\", \"instance_id\": \"test-$(date +%s)\", \"min_nodes\": 1}'"
+  echo "  # Pipeline check (known-working memory distribution):"
+  echo "  curl -X POST http://localhost:52415/place_instance -H 'Content-Type: application/json' -d '{\"model_id\": \"mlx-community/Qwen2.5-72B-Instruct-4bit\", \"min_nodes\": 1}'"
+  echo "  # Path forward for compute distribution: use supportsTensor=true model with sharding=Tensor"
 elif [ "$NODE_NAME" = "worker" ] || [ "$NODE_NAME" = "local-worker" ]; then
   echo "  curl -X POST http://localhost:52416/place_instance ..."
 else
