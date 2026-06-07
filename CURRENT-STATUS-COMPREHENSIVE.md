@@ -40,6 +40,13 @@ State: Paused intentionally after consolidation and shutdown
   - `sharding=Tensor`
   - `instance_meta=MlxRing` first (jaccl only after suitable RDMA/all-to-all prerequisites are met)
 
+## Next Session Success Criteria
+1. All participating links run at 10 Gb full duplex.
+2. Placement uses tensor-capable model with explicit Tensor sharding.
+3. Under sustained decode load, each node shows non-trivial GPU SM utilization (not only VRAM residency).
+4. Per-node sampling (`nvidia-smi pmon` at 1s cadence) confirms activity across all ranks during the same request window.
+5. If any node remains mostly idle while others are saturated, capture logs/state and treat run as not meeting parity target.
+
 ## Resume Procedure
 1. Start cluster:
 ```bash
