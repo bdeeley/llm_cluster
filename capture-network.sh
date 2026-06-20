@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # tcpdump Network Diagnostics Script
-# Captures all traffic on libp2p ports and API ports for all 4 nodes
+# Captures all traffic on libp2p ports and API ports for active nodes
 # Saves to files for later analysis
 
 set -e
@@ -43,8 +43,7 @@ start_capture() {
 
 # Start captures on all nodes
 start_capture "local" "$CAPTURE_DIR/maxpower.pcap" "5678 or 5680 or 52415 or 52416"
-start_capture "172.16.0.175" "$CAPTURE_DIR/theplague.pcap" "5679 or 52415 or 52416"
-start_capture "172.16.0.14" "$CAPTURE_DIR/debian.pcap" "5679 or 52415 or 52416"
+start_capture "172.16.0.29" "$CAPTURE_DIR/theplague.pcap" "5679 or 52415 or 52416"
 
 echo ""
 echo "Capturing network traffic for $DURATION seconds..."

@@ -56,7 +56,6 @@ show_main_menu() {
   print_menu_item "8" "Test master node"
   print_menu_item "9" "Test worker node"
   print_menu_item "a" "Test remote node (Theplague)"
-  print_menu_item "b" "Test remote node (Debian)"
   echo ""
   echo "UTILITIES:"
   print_menu_item "c" "View automation guide"
@@ -73,8 +72,7 @@ show_single_node_menu() {
   print_menu_item "1" "Master"
   print_menu_item "2" "Worker"
   print_menu_item "3" "Theplague (Remote)"
-  print_menu_item "4" "Debian (Remote)"
-  print_menu_item "5" "All nodes"
+  print_menu_item "4" "All active nodes"
   print_menu_item "0" "Back"
   echo ""
 }
@@ -149,7 +147,6 @@ cmd_diagnose() {
   print_menu_item "2" "Master only"
   print_menu_item "3" "Worker only"
   print_menu_item "4" "Theplague only"
-  print_menu_item "5" "Debian only"
   print_menu_item "0" "Cancel"
   echo ""
   read -p "Choice: " choice
@@ -159,7 +156,6 @@ cmd_diagnose() {
     2) bash "$SCRIPT_DIR/cluster-diagnose.sh" master ;;
     3) bash "$SCRIPT_DIR/cluster-diagnose.sh" worker ;;
     4) bash "$SCRIPT_DIR/cluster-diagnose.sh" theplague ;;
-    5) bash "$SCRIPT_DIR/cluster-diagnose.sh" debian ;;
     0) echo "Cancelled" ;;
     *) print_error "Invalid choice" ;;
   esac
@@ -178,12 +174,12 @@ cmd_test_single() {
     1) bash "$SCRIPT_DIR/test-single-node.sh" master ;;
     2) bash "$SCRIPT_DIR/test-single-node.sh" worker ;;
     3) bash "$SCRIPT_DIR/test-single-node.sh" theplague ;;
-    4) bash "$SCRIPT_DIR/test-single-node.sh" debian ;;
-    5) 
+    4) 
       for node in master worker; do
         bash "$SCRIPT_DIR/test-single-node.sh" "$node"
         echo ""
       done
+      bash "$SCRIPT_DIR/test-single-node.sh" theplague
       ;;
     0) echo "Cancelled" ;;
     *) print_error "Invalid choice" ;;
@@ -233,17 +229,10 @@ cmd_dashboard() {
     echo ""
     
     # Remote GPUs
-    echo -e "${YELLOW}theplague (Remote RTX 4090):${NC}"
-    theplague_mem=$(ssh -o ConnectTimeout=1 -o BatchMode=yes bdeeley@172.16.0.175 \
+    echo -e "${YELLOW}theplague (Remote RTX 3060):${NC}"
+    theplague_mem=$(ssh -o ConnectTimeout=1 -o BatchMode=yes bdeeley@172.16.0.29 \
       'nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits' 2>/dev/null || echo "?")
     printf "  GPU0:             %6s MB\n" "$theplague_mem"
-    
-    echo ""
-    
-    echo -e "${YELLOW}debian (Remote RTX 3090):${NC}"
-    debian_mem=$(ssh -o ConnectTimeout=1 -o BatchMode=yes bdeeley@172.16.0.14 \
-      'nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits' 2>/dev/null || echo "?")
-    printf "  GPU0:             %6s MB\n" "$debian_mem"
     
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -294,12 +283,11 @@ else
       5) cmd_status ;;
       6) cmd_logs ;;
       7) cmd_diagnose ;;
-      8|9|a|b)
+      8|9|a)
         case "$choice" in
           8) bash "$SCRIPT_DIR/test-single-node.sh" master ;;
           9) bash "$SCRIPT_DIR/test-single-node.sh" worker ;;
           a) bash "$SCRIPT_DIR/test-single-node.sh" theplague ;;
-          b) bash "$SCRIPT_DIR/test-single-node.sh" debian ;;
         esac
         echo ""
         read -p "Press Enter to continue..."

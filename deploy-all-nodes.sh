@@ -80,14 +80,14 @@ if [ $SKIP_REMOTES -eq 0 ]; then
     log_info "Deploying to $node_name ($node_ip)..."
     
     # Copy config files
-    scp -o BatchMode=yes -q "$CONFIG_FILE" "bdeeley@$node_name:$SCRIPT_DIR/" 2>/dev/null || \
+    scp -o BatchMode=yes -q "$CONFIG_FILE" "bdeeley@$node_ip:$SCRIPT_DIR/" 2>/dev/null || \
       log_error "Failed to copy config to $node_name"
     
-    scp -o BatchMode=yes -q "$SETUP_SCRIPT" "bdeeley@$node_name:$SCRIPT_DIR/" 2>/dev/null || \
+    scp -o BatchMode=yes -q "$SETUP_SCRIPT" "bdeeley@$node_ip:$SCRIPT_DIR/" 2>/dev/null || \
       log_error "Failed to copy setup script to $node_name"
     
     # Run setup on remote
-    ssh -o BatchMode=yes "bdeeley@$node_name" \
+    ssh -o BatchMode=yes "bdeeley@$node_ip" \
       "sudo bash $SCRIPT_DIR/setup-node.sh remote $node_name" 2>/dev/null || \
       log_error "Setup failed on $node_name"
     
@@ -112,7 +112,6 @@ echo -e "${YELLOW}To verify setup on each node:${NC}"
 echo "  bash $TEST_SCRIPT master"
 echo "  bash $TEST_SCRIPT worker"
 echo "  bash $TEST_SCRIPT theplague"
-echo "  bash $TEST_SCRIPT debian"
 echo ""
 echo -e "${YELLOW}To start the cluster:${NC}"
 echo "  bash ${SCRIPT_DIR}/start-cluster.sh"
