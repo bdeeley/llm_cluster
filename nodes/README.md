@@ -212,3 +212,137 @@ At boot:
 All writes go to RAM. Original squashfs untouched.
 Pull USB → Windows boots normally.
 ```
+
+---
+
+## CRITICAL: EXO Bootstrap Edge Cases (June 2026)
+
+**This section documents issues encountered during theplague bootstrap. Must be followed for next deployment.**
+
+### Issue #1: PEP 668 Pip Restriction (Debian 13+)
+**Problem**: `pip3 install --user` fails with "externally-managed-environment" error
+**Solution**: Use venv instead
+```bash
+cd ~/exo
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip uv
+uv pip install -e .
+```
+**Important**: Do NOT use `--break-system-packages` flag
+
+### Issue #2: Missing Git
+**Problem**: Fresh OS has no git after format
+**Solution**: Install early
+```bash
+sudo apt-get update
+sudo apt-get install -y git curl wget build-essential python3-dev python3-pip python3-venv
+```
+**Do this BEFORE cloning exo**
+
+### Issue #3: Missing Dashboard Directory (CRITICAL)
+**Problem**: exo startup fails with "Directory '/home/bdeeley/exo/dashboard/dist' does not exist"
+**Solution**: Create placeholder BEFORE starting service
+```bash
+mkdir -p /home/bdeeley/exo/dashboard/dist
+echo 'placeholder' > /home/bdeeley/exo/dashboard/dist/index.html
+```
+**Why**: Dashboard is only for UI; cluster works fine without real build, but exo refuses to start without the directory existing
+
+### Issue #4: Dashboard on All Nodes
+Dashboard directory creation is required on:
+- maxpower master: `/home/bdeeley/exo/dashboard/dist`
+- maxpower worker: `/home/bdeeley/exo/dashboard/dist`
+- Remote nodes: `/home/bdeeley/exo/dashboard/dist`
+
+### Issue #5: Service Arguments Are Version-Specific
+**Problem**: Old documentation references `--node-port` (invalid)
+**Correct argument**: `--libp2p-port`
+```bash
+# WRONG:
+exo --node-port 5679
+
+# CORRECT:
+exo --api-port 52415 --libp2p-port 5679 --bootstrap-peers /ip4/172.16.0.28/tcp/5678,...
+```
+**Always check**: `exo --help` for current valid arguments if bootstrapping differs
+
+### Issue #6: Pidfile Conflicts on Multi-Process Nodes
+**Problem**: Master and worker processes on same machine fight over ~/.cache/exo/exo.pid
+**Solution**: Separate cache directories
+```bash
+# Master service: (default)
+Environment="XDG_CACHE_HOME=/home/bdeeley/.cache/exo"
+
+# Worker service:
+Environment="XDG_CACHE_HOME=/home/bdeeley/.cache/exo-worker"
+```
+
+### Issue #7: HuggingFace Token Management (CRITICAL)
+**Current approach** (as of June 2026):
+- Set `HF_TOKEN=""` (empty string)
+- Point `HF_HOME=/BIGMIRROR/exo-models-local` (shared NFS cache)
+- All models pre-cached, no downloads needed, no auth failures
+
+**Previous approach** (caused failures):
+- Invalid tokens in node-config.env → silent HTTP 401 errors on remote nodes
+- Errors only visible in central logging, not in API responses
+
+**For next session**: Keep HF_TOKEN empty unless you need HF authentication
+
+### Bootstrap Order (Recommended for Next Time)
+```bash
+# 1. System packages (must be first)
+sudo apt-get update
+sudo apt-get install -y git curl wget build-essential python3-dev python3-pip python3-venv
+
+# 2. Clone and checkout exo at specific commit
+cd ~
+git clone https://github.com/exo-explore/exo.git exo
+cd exo
+git checkout 74e9fe15  # Or current stable commit
+
+# 3. Python venv + uv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip uv
+uv pip install -e .
+
+# 4. Create cache dirs (separate per-node if multi-process)
+mkdir -p ~/.local/share/exo-<nodename>
+mkdir -p ~/.cache/exo-<nodename>
+
+# 5. Dashboard workaround (CRITICAL - exo won't start without this)
+mkdir -p ~/exo/dashboard/dist
+echo 'placeholder' > ~/exo/dashboard/dist/index.html
+
+# 6. Systemd service (verify --libp2p-port and bootstrap-peers)
+sudo cp exo.service /etc/systemd/system/exo.service
+sudo systemctl daemon-reload
+sudo systemctl enable exo.service
+
+# 7. Start and verify
+sudo systemctl start exo.service
+sleep 4
+sudo systemctl status exo.service
+
+# 8. Verify mounts
+mount | grep -E 'BIGMIRROR|NVME'
+
+# 9. Check cluster state (from master only)
+curl -s http://localhost:52415/state | jq '.'
+```
+
+### Central Logging (MANDATORY for ALL Sessions)
+All exo service ExecStart commands MUST use centralized logging wrapper:
+```bash
+ExecStart=/BIGMIRROR/exo-wrapper-simple.sh /home/bdeeley/.local/bin/uv run exo ...
+```
+This captures auth errors, network issues, and runtime failures that are otherwise invisible to API clients.
+
+**Monitoring**:
+```bash
+./monitor-logs.sh  # From /home/bdeeley/test directory
+```
+
+---
