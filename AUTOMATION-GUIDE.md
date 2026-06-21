@@ -1,8 +1,19 @@
 # EXO Cluster Automation Guide
 
-Date: June 20, 2026
+Date: June 21, 2026
 
 This runbook reflects the consolidated operational workflow for this repo.
+
+## Closeout Execution Profile (Current)
+Use this when the priority is to finalize the 48 GB pool and move on to infra expansion.
+
+1. Primary acceptance (VRAM-first):
+- `./distinct-ip-rank.sh restart && ./distinct-ip-rank.sh gate mlx-community/Qwen2.5-7B-Instruct-4bit 3`
+- Require PASS through Gate E.
+
+2. Deferred acceptance (compute parity):
+- Run tensor-capable model validation only after network/node upgrade workstream milestones.
+- Track separately as optimization, not as a blocker for closeout.
 
 ## 0. Bootstrap Gate (theplague)
 Complete this before cluster startup:

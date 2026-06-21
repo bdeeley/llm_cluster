@@ -1,253 +1,281 @@
-# EXO Cluster Current Status (Comprehensive) - June 20 2026 SESSION FINAL
+# EXO Cluster Current Status (Comprehensive)
 
-**Date**: June 20, 2026 - Session Complete  
-**State**: Services running with auth resolved; cluster ready for shutdown  
-**Next Action**: Complete documentation and graceful shutdown of all nodes
+Date: June 21, 2026
+State: **VALIDATED** - Distinct-IP 3-rank strict gates passed, closeout baseline established.
 
----
+## SESSION SUMMARY: June 21 (Closeout Validation)
+**Goal:** finalize a deterministic 3-rank run and stop firefighting.
+**Outcome:** Success - strict gates passed end-to-end on distinct-IP architecture.
 
-## EXECUTIVE SUMMARY: SESSION OBJECTIVES & OUTCOMES
+### What Was Validated ✅
+1. `./distinct-ip-rank.sh restart && ./distinct-ip-rank.sh gate mlx-community/Qwen2.5-7B-Instruct-4bit 3`
+2. Gate B PASS (topology integrity)
+3. Gate C PASS (placement integrity)
+4. Gate D PASS (runner integrity)
+5. Gate E PASS (bounded inference)
 
-### Primary Objective
-**Get a model loaded across all nodes in 3-node exo cluster**
-- Master: maxpower (172.16.0.28)
-- Local Worker: maxpower (127.0.0.1:52416)
-- Remote Worker: theplague (172.16.0.29)
+### Final Root Causes Closed ✅
+1. **Trusted SSH path to theplague**
+  - Controller key auth to `172.16.0.29` fixed.
+2. **Netns model visibility**
+  - Netns worker now reads shared model store via `XDG_DATA_HOME=/home/bdeeley/.local/share`.
+3. **Netns pidfile collision**
+  - Netns worker keeps isolated `XDG_CACHE_HOME=/home/bdeeley/.cache/exo-worker-netns` and `XDG_CONFIG_HOME=/home/bdeeley/.config/exo-worker-netns`.
 
-### Session Achievements ✅
-1. **Theplague node bootstrapped from scratch** - OS installed, git/venv/exo deployed, converged
-2. **HuggingFace token authentication blocker identified and FIXED** - invalid token causing silent remote failures
-3. **Centralized logging infrastructure deployed** - all nodes writing to /tmp/exo-cluster-logs/
-4. **Pidfile conflicts resolved** - master and worker now use separate cache dirs
-5. **3-node topology converged** - 2 nodes visible in state endpoint after auth fix
-6. **7 bootstrap edge cases documented** - guides next deployment cycle
+### Closeout Decision (48 GB phase)
+Use a 2-phase completion model so infrastructure upgrades can proceed:
 
-### Model Deployment Status: READY
-- Model: mlx-community/Qwen2.5-32B-Instruct-4bit (18.4GB, pre-cached)
-- VRAM pool: 48GB (24GB master + 12GB worker + 12GB remote)
-- Sharding: Pipeline (layers distributed across nodes)
-- Placement: Ready to deploy after full runner convergence
+1. **Phase 1: VRAM Spread First (DONE)**
+  - Requirement: deterministic placement + inference pass on `24 + 12 + 12 GB` pool.
+  - Status: achieved.
 
-### Outstanding Blockers
-- Workers still not showing runners in /state endpoint (services running, convergence ongoing)
-- Expected resolution: 30-60s after latest restart (just completed)
+2. **Phase 2: Compute Distribution (NEXT PHASE, non-blocking)**
+  - Requirement: `supportsTensor=true` model + `sharding=Tensor` + simultaneous SM activity across all ranks.
+  - Status: pending and tracked separately from infra/network work.
 
----
+### Immediate Next Workstream
+1. Proceed with network upgrades and additional node onboarding.
+2. Keep this cluster path frozen as baseline runbook.
+3. Resume compute-parity experiments only after network expansion is complete.
 
-## CRITICAL FINDING: CENTRAL LOGGING IS MANDATORY
+## SESSION SUMMARY: June 20 Evening (17:30-18:15 CDT) - CLUSTER SHUTDOWN
+**Goal:** Load largest model to 48GB pool, update docs, shutdown.
+**Outcome:** Partial - cluster stable and placement working, but max-model validation unclear. Cluster **STOPPED cleanly**.
 
-**This infrastructure must be used in EVERY future session.**
+### What Worked This Session ✅
+1. **Cluster Bring-up:** Successfully started 3-node topology (maxpower + theplague + debian decommissioned)
+2. **Source Parity Fix:** Cross-node code drift (router.py) was identified and fixed via tar sync
+3. **Placement Pipeline:** Instance/runner/task creation now functional (no longer no-op)
+4. **Qwen2.5-7B Model:** Successfully placed with all 3 runners reaching RunnerReady state
+5. **Live Inference:** Chat completions endpoint validated working correctly
+6. **Clean Shutdown:** Cluster stopped successfully with all ports freed
 
-### Why It's Critical
-The session nearly failed to catch the root cause of cluster failure because HuggingFace token errors were **silent**.
-- Remote node was refusing work with "HTTP 401 Unauthorized"
-- Cluster appeared broken but API requests looked normal
-- Error messages only visible in journalctl, not in HTTP responses
-- Discovery: Only caught by actively reviewing central logs
+### What Didn't Work / Blockers 🔴
+1. **Topology Degradation:** Expected 3 edges, but status showed only 1 edge (partial connectivity)
+2. **Orphaned Runners:** Final status showed 3 runners but 0 instances (leftover from previous test)
+3. **Dependency Parity Incomplete:** theplague missing PIL, jinja2, and possibly other packages despite earlier sync attempts
+4. **Max Model Validation Unclear:** Llama-3.3-70B placement attempted but runner state (RunnerReady vs RunnerFailed) never definitively confirmed
+5. **Repeated Sweep Without Decision:** Model-fit sweep loop ran multiple times without clear pass/fail validation criteria
+6. **No Sustained Load Test:** Got placement working but never executed a real inference workload under the largest model to confirm stability
 
-### How It Works
-All 3 systemd services configured with centralized logging:
+### Root Causes Identified 🔍
+| Issue | Root Cause | Fix Applied | Status |
+|-------|-----------|-------------|--------|
+| Topology edges=1 not 3 | Intermittent backend discovery issue | Not resolved - unclear if transient or systemic | 🟡 Pending |
+| Runner failures mid-placement | Dependency gaps (PIL, jinja2 missing from theplague venv) | Partial - some packages copied but not comprehensive | 🟡 Incomplete |
+| Model-fit loop without decision | No clear validation threshold defined (What counts as "success"?) | Not fixed - needs explicit criteria | 🔴 Blocker |
+| No max-model confidence | Never validated that RunnerReady state persisted for 30+ seconds with large model | Not attempted | ⏳ TODO |
 
-```bash
-# Wrapper captures stdout/stderr
-ExecStart=/BIGMIRROR/exo-wrapper-simple.sh /path/to/exo ...
-
-# Wrapper writes to journalctl, then central log monitor forwards to
-/tmp/exo-cluster-logs/master.log
-/tmp/exo-cluster-logs/worker.log
-/tmp/exo-cluster-logs/theplague.log
+### Current Cluster State (at shutdown)
+```
+Services: ALL STOPPED ✓
+Topology: Offline
+APIs: Offline
+Network: Ports freed, IPs quiet
+Last instance count: 0
+Last runner count: 3 (orphaned, no backing instances)
 ```
 
-### Viewing Central Logs
-```bash
-# Real-time tail (from test directory)
-./monitor-logs.sh
+### Next Session Action Plan (CLEAR & ORDERED) 📋
+**When you restart the cluster next, execute this exact sequence - NO DEVIATIONS:**
 
-# Or manual inspection
-tail -f /tmp/exo-cluster-logs/*.log
-journalctl -u exo.service -f  # Per-node
+1. **Start cluster** (5 min)
+   ```bash
+   ./cluster-control.sh start
+   ./cluster-control.sh status
+   ```
+   ✅ Success criteria: All 3 nodes ACTIVE, topology 3 nodes visible, edge count = 3
+
+2. **Fix theplague dependency parity ONCE** (10 min) ⚠️ THIS IS CRITICAL
+   - Current gaps: PIL (Pillow), jinja2, possibly others
+   - Option A (fast): Mount maxpower:/NVME/.../venv on theplague via NFS, test if works
+   - Option B (clean): Re-run full `pip install` on theplague with exact same requirements.txt as maxpower
+   - Document which packages are actually missing: `cd /path/to/theplague && python -c "import mlx, PIL, jinja2, pydantic; print('OK')"`
+
+3. **Pick ONE model and validate definitively** (15 min) - DO NOT LOOP
+   - Selected model: **Llama-3.3-70B-Instruct-4bit** (~37GB, targets 48GB pool)
+   - Place it: `curl -X POST http://localhost:52415/place_instance -d '{"model_id":"meta-llama/Llama-3.3-70B-Instruct-4bit","min_nodes":3}'`
+   - Wait 60 seconds
+   - Check result: `curl -s http://localhost:52415/state | jq '.runners'`
+   - **PASS criteria:** All 3 runners show `"RunnerReady"` (not RunnerFailed, not RunnerLoading, not RunnerConnecting)
+   - **FAIL criteria:** Any runner shows RunnerFailed, or runners don't reach RunnerReady after 60 seconds
+   - Document the result in this file before proceeding
+
+4. **If PASS on large model:** Run sustained load test (10 min)
+   - Send 5 chat completions with 500-token generation
+   - Monitor: `nvidia-smi pmon` on each node (1s cadence) - capture if all GPUs show SM% > 10%
+   - Test successful if all 3 nodes show activity
+
+5. **If FAIL:** Diagnosis (15 min)
+   - Check master logs: `tail -100 /BIGMIRROR/exo-cluster.log | grep -i "runner\|error\|failed"`
+   - Check runner stderr on theplague: `journalctl -u exo.service -n 50`
+   - Root cause is either: (a) dependency still missing, (b) topology disconnected, (c) model incompatibility
+   - Fix identified issue and go back to step 3
+
+6. **Document result & shutdown** (5 min)
+   - Add new "SESSION: [date]" section to this file with outcome
+   - `./cluster-control.sh stop`
+   - Commit to git with message "Session [date]: [outcome]"
+
+### Current VRAM Budget & Model Selection
+- **Active:** 48 GB total (maxpower 24GB + 12GB, theplague 12GB)
+- **Target:** Largest model that reaches RunnerReady on all 3 nodes
+- **Candidates (largest first):**
+  1. Llama-3.3-70B-Instruct-4bit (~37 GB) ← PRIMARY TARGET
+  2. Qwen2.5-72B-Instruct-4bit (~40 GB) - but reports `supportsTensor=false`
+  3. Qwen2.5-7B-Instruct-4bit (~2 GB) ← KNOWN TO WORK
+  4. Mistral-Nemo-12B (~7 GB)
+
+## Latest Operational Update (June 20, 16:00 CDT)
+- Revalidated cluster bring-up on active nodes (`maxpower` + `theplague`) and reached stable `topology_nodes=3`, `backend_nodes=3`.
+- Root cause of prior placement no-op was confirmed and fixed:
+  - Cross-node source drift in `src/exo/routing/router.py` (theplague differed from maxpower).
+  - This caused `LocalForwarderEvent`/`NodeGatheredInfo` validation failures on theplague and prevented backend participation.
+  - Source parity was restored by syncing `src/` from maxpower to theplague.
+- After source parity, placement started materializing correctly:
+  - `place_instance` now creates instances, runners, and tasks (no longer ACK-only/no-op).
+- Remaining blocker is dependency parity on theplague runner environment:
+  - Initially failed with `ModuleNotFoundError: No module named 'mlx'`.
+  - Then failed with `ImportError: libcudnn.so.9`.
+  - After copying MLX + NVIDIA runtime artifacts from maxpower, current failure progressed to `ModuleNotFoundError: No module named 'PIL'`.
+- Conclusion at stop point:
+  - Cluster coordination and placement pipeline are now functioning.
+  - Final runner stability on theplague still requires finishing Python package/runtime parity.
+
+## Executive Checkpoint
+- Cluster services are stopped on all nodes.
+- Repository has been consolidated: legacy reports/scripts archived, active runbook simplified.
+- Investigative conclusion is stable: current 72B target achieves VRAM distribution but not balanced decode compute.
+- Topology changed since June 7: debian is decommissioned for now; thegibson is the active 10 Gb storage server; maxpower moved to 10 Gb with a new IP; theplague moved to 5 Gb with a new IP and requires full exo re-setup after OS format.
+
+## Final Service State at Pause
+- maxpower (IP updated in active scripts/docs)
+  - exo.service: expected inactive until resume
+  - exo-worker.service: expected inactive until resume
+- theplague (IP changed; host reformatted)
+  - exo.service: not ready; requires exo/bootstrap/systemd setup
+- debian
+  - decommissioned for current phase
+
+## What Was Proven
+1. Topology can converge to 4 nodes with active runners and successful placement.
+2. Qwen2.5-72B-Instruct-4bit loads shards into VRAM across all 4 GPUs.
+3. Payload serving works from master API.
+4. During sustained decode, high SM utilization remains concentrated on one GPU rank.
+
+## Why Compute Was Not Evenly Distributed
+1. Model capability gate:
+- `mlx-community/Qwen2.5-72B-Instruct-4bit` reports `supportsTensor=false`.
+- This blocks true tensor-parallel decode behavior for this model path.
+
+2. Cluster constraints:
+- Mixed GPU class/capability (including Quadro P6000 with older compute capability).
+- Asymmetric link speeds during tests (2.5 Gb and 10 Gb mixed).
+- Node software parity needs to be enforced before next deep run.
+
+## Decision for Next Session
+- Proceed with staged network uplift (current mixed fabric first, then full switch/NIC upgrade).
+- Resume using a `supportsTensor=true` model.
+- Request tensor explicitly:
+  - `sharding=Tensor`
+  - `instance_meta=MlxRing` first (jaccl only after suitable RDMA/all-to-all prerequisites are met)
+
+## Network Update (June 20)
+- Current links:
+  - 10 Gb: maxpower and thegibson storage server (/BIGMIRROR, /NVME).
+  - 5 Gb: theplague (USB path).
+- In flight:
+  - Complete script and unit re-targeting to new maxpower/theplague IPs.
+  - Rebuild theplague exo runtime and services after OS reinstall.
+
+## Immediate Migration Tasks (June 20)
+1. Update all hardcoded node/IP references in active scripts and docs.
+2. Remove debian from active control/diagnostic/startup paths (keep only in archive/historical docs).
+3. Re-bootstrap theplague (exo checkout, venv/uv deps, CUDA headers, systemd unit/drop-ins).
+4. Validate mounts on all active nodes:
+   - `/BIGMIRROR`
+   - `/NVME`
+5. Re-run baseline health/start/status flow with the reduced active compute set.
+
+### Task Status Delta
+- Completed:
+  - Script/doc retargeting to current IPs and active nodes.
+  - `cluster-control.sh` hardening and realistic status checks.
+  - theplague backend visibility restored (3 backend nodes visible).
+  - Placement path restored from no-op to active instance/runner/task creation.
+- In progress:
+  - theplague runtime dependency parity for runner process (`PIL` currently missing).
+- Next:
+  - Install missing Python imaging dependency on theplague and re-run 3-node placement smoke.
+  - Validate all runners converge to non-failed states before sustained utilization testing.
+
+## June 20 Execution Plan (Ordered)
+1. Bootstrap theplague end-to-end:
+   - exo checkout present
+   - uv/venv dependencies installed
+   - CUDA headers available to service runtime
+   - exo.service created and enabled
+   - `/BIGMIRROR` and `/NVME` mounted and persistent
+2. Bring up active cluster (`maxpower` + `theplague`) and confirm stable topology.
+3. Run model-fit discovery for the current pool before long payload testing.
+4. Execute compute-distribution validation under sustained load.
+
+## Current VRAM Budget and Model Selection Gate
+- Active compute VRAM budget is now approximately 48 GB:
+  - maxpower GPU A: 24 GB
+  - maxpower GPU B: 12 GB
+  - theplague GPU: 12 GB
+- Selection rule for current phase:
+  1. Candidate must place successfully with `min_nodes=3`.
+  2. Candidate should report tensor-capable placement support in preview/API path.
+  3. Candidate must show non-trivial SM utilization on all active ranks under load.
+- Practical target class for first passes: MLX 4-bit models in the ~30B range (or smaller) that satisfy tensor-path requirements.
+
+## Next Session Success Criteria
+1. Phase A (current mixed network): document utilization baseline under 2.5/5/10 Gb mixed links.
+2. Phase B (after switch/NIC delivery): re-run the same workload with upgraded links and compare scaling.
+3. Placement uses a model that fits the active 48 GB pool and supports tensor path with explicit Tensor sharding.
+4. Under sustained decode load, each node shows non-trivial GPU SM utilization (not only VRAM residency).
+5. Per-node sampling (`nvidia-smi pmon` at 1s cadence) confirms activity across all ranks during the same request window.
+6. If any node remains mostly idle while others are saturated, capture logs/state and treat run as not meeting parity target.
+
+## Resume Procedure
+1. Start cluster:
+```bash
+cd /Users/bdeeley/cluster/llm_cluster
+./cluster-control.sh start
+./cluster-control.sh status
 ```
 
-### What to Watch For
-- `[TASK DISPATCH]` - job queue messages
-- `[RUNNER]` - worker status changes
-- `Error` - any failures
-- `HF_TOKEN`, `auth`, `401` - authentication issues
-
----
-
-## ISSUES RESOLVED THIS SESSION
-**Problem**: Remote node (theplague) crashing with "HuggingFaceAuthenticationError: HTTP 401"
-- Node-config.env contained invalid token: `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`
-- Central logging showed 80+ pydantic validation errors in GlobalForwarderEvent
-- **Detection**: Only caught because we actively reviewed `/tmp/exo-cluster-logs/theplague.log`
-
-**Solution**: Clear token entirely (empty string)
-- Models are pre-cached in /BIGMIRROR/exo-models-local (18.4GB Qwen2.5-32B-Instruct-4bit)
-- No downloads needed, empty HF_TOKEN avoids auth failures
-- All 3 services updated: HF_HOME=/BIGMIRROR/exo-models-local, HF_TOKEN=""
-
-**Action Taken**:
-- Updated node-config.env (source for all env vars)
-- Regenerated all 3 systemd service files with corrected HF config
-- Restarted all services
-- Verified APIs responding
-
-### 2. Missing Dashboard Directory ✅ RESOLVED
-**Problem**: RuntimeError on service startup: "Directory '/home/bdeeley/exo/dashboard/dist' does not exist"
-- Services fail to start if placeholder directory missing
-- Required for exo Python module initialization (before main process)
-
-**Solution**: Created placeholder on all nodes
+2. Validate topology/health and backend parity:
 ```bash
-mkdir -p /home/bdeeley/exo/dashboard/dist
-echo 'placeholder' > /home/bdeeley/exo/dashboard/dist/index.html
+./cluster-diagnose.sh all
+curl -s http://localhost:52415/state | jq '{nodes:(.nodeIdentities|length), conns:(.topology.connections|keys|length), backend_nodes:(.nodeBackends|keys|length), instances:(.instances|length), runners:(.runners|length)}'
 ```
 
-### 3. Pidfile Conflict Between Master and Worker ✅ RESOLVED
-**Problem**: exo-worker.service repeatedly failed with "daemon already running with PID 659065"
-- Master and worker both using ~/.cache/exo/exo.pid
-- Worker unable to acquire lock, exit/retry loop every 5s
-
-**Solution**: Separated cache directories
-- Master: XDG_CACHE_HOME=/home/bdeeley/.cache/exo (default)
-- Worker: XDG_CACHE_HOME=/home/bdeeley/.cache/exo-worker (isolated)
-- Each process now gets its own pidfile, services stabilize
-
-**Outstanding Issue**: Workers still not visible in master's /state endpoint
-- 2 nodes converged (master + remote)
-- 0 runners registered yet (workers should report)
-- Likely: Converging (expected 30-60s after restart), may need further investigation
-
-## Current VRAM Budget
-- maxpower master: 24GB (Quadro P6000)
-- maxpower worker: 12GB (RTX 3060)
-- theplague: 12GB (RTX 3060)
-- **Total**: 48GB
-
-Model target: Qwen2.5-32B-Instruct-4bit (18.4GB) - supports Pipeline sharding across 3 nodes
-
-## Current Hurdles to Model Deployment
-1. **Workers not registering runners**: Master sees 2 nodes but 0 runners
-   - Services running, APIs responding
-   - Likely network/convergence issue or new pidfile separation needs more time
-   
-2. **Inference request timeouts**: Previous attempts hung at 60s
-   - Likely related to authentication errors or runner initialization
-   - Should retry after full 3-node convergence
-
-3. **Model placement failures**: "No cycles found with sufficient memory"
-   - Occurred when requesting min_nodes=3 with only 2 runners
-   - Will resolve once all runners register**Outstanding Issue**: Workers still not visible in master's /state endpoint
-- 2 nodes converged (master + remote)
-- 0 runners registered yet (workers should report)
-- Likely: Converging (expected 30-60s after restart), may need further investigation
-
----
-
-## CONFIGURATION FILES UPDATED (THIS SESSION)
-
-### node-config.env
+3. If a runner fails, inspect direct failure reason first:
 ```bash
-export HF_HOME="/BIGMIRROR/exo-models-local"   # Changed from: local paths
-export HF_TOKEN=""                               # Changed from: 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
-```
-**Impact**: All systemd services now inherit these vars via EnvironmentFile directive
-
-### exo.service (maxpower master)
-- **ExecStart**: Uses `/BIGMIRROR/exo-wrapper-simple.sh` wrapper (centralized logging)
-- **Environment**: HF_HOME + HF_TOKEN corrected
-- **CUDA_VISIBLE_DEVICES**: 1 (Quadro P6000, 24GB)
-- **API Port**: 52415 / LibP2P Port: 5678
-- **Status**: RUNNING, active (running) with 55 tasks
-
-### exo-worker.service (maxpower worker)
-- **ExecStart**: Uses same wrapper
-- **Environment**: Isolated cache dir via `XDG_CACHE_HOME=/home/bdeeley/.cache/exo-worker`
-- **CUDA_VISIBLE_DEVICES**: 0 (RTX 3060, 12GB)
-- **API Port**: 52416 / LibP2P Port: 5680
-- **Status**: RUNNING, recent restart after pidfile fix
-
-### exo.service (theplague remote)
-- **ExecStart**: Uses wrapper
-- **Environment**: HF_HOME + HF_TOKEN corrected (previously had bad token)
-- **API Port**: 52415 / LibP2P Port: 5679
-- **Status**: RUNNING, recently restarted with corrected config
-
----
-
-## CURRENT VRAM BUDGET & MODEL SELECTION
-
-**Total VRAM**: 48 GB
-- maxpower master: 24 GB (Quadro P6000)
-- maxpower worker: 12 GB (RTX 3060)
-- theplague: 12 GB (RTX 3060)
-
-**Model Target**: mlx-community/Qwen2.5-32B-Instruct-4bit
-- Size: 18.4 GB (4-bit quantized)
-- Location: Pre-cached at `/BIGMIRROR/exo-models-local`
-- Sharding: Pipeline (layers distributed across nodes)
-- Status: Ready for deployment once runners converge
-
----
-
-## DEPLOYMENT READINESS CHECKLIST
-
-- [x] Theplague node bootstrapped and converged
-- [x] HF authentication fixed on all nodes
-- [x] Centralized logging deployed (wrapper + monitor script)
-- [x] Pidfile conflicts resolved (master/worker separation)
-- [x] All 3 services running with correct config
-- [ ] Full 3-node runner convergence (in progress, expected 30-60s)
-- [ ] Model deployment to placement API
-- [ ] Inference testing
-
----
-
-## NEXT SESSION: QUICK START GUIDE
-
-### 1. Start Cluster
-```bash
-cd /home/bdeeley/test
-sudo systemctl start exo.service
-sudo systemctl start exo-worker.service  
-ssh theplague "sudo systemctl start exo.service"
+curl -s http://localhost:52415/state | jq '.runners | to_entries[] | select(.value.RunnerFailed) | {runner:.key, error:.value.RunnerFailed.errorMessage}'
 ```
 
-### 2. Monitor with Central Logs
+4. Place tensor-capable model:
 ```bash
-./monitor-logs.sh &  # Run in background
+curl -s -X POST http://localhost:52415/place_instance \
+  -H 'Content-Type: application/json' \
+  -d '{"model_id":"<supportsTensor-model>","sharding":"Tensor","instance_meta":"MlxRing","min_nodes":3}' | jq .
 ```
 
-### 3. Wait for Convergence
-```bash
-# Check in terminal, should show 3 nodes + runners
-curl -s http://localhost:52415/state | jq '{nodes:(.nodeIdentities|length), runners:(.runners|length)}'
-```
+5. Validate compute distribution under load:
+- Run a long payload.
+- Sample `nvidia-smi pmon` at 1s cadence on all nodes.
+- Confirm non-trivial SM utilization on remote ranks, not only on one local GPU.
 
-### 4. Deploy Model
-```bash
-curl -s "http://localhost:52415/instance/placement?model_id=mlx-community/Qwen2.5-32B-Instruct-4bit&sharding=Pipeline&min_nodes=3"
-```
-
-### 5. Test Inference
-```bash
-curl -X POST http://localhost:52415/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"mlx-community/Qwen2.5-32B-Instruct-4bit", "messages":[{"role":"user","content":"What is 2+2?"}], "max_tokens":20}'
-```
-
----
-
-## BOOTSTRAP DOCUMENTATION LOCATION
-
-All edge cases and bootstrap procedures documented in:
-- `/memories/repo/bootstrap-edge-cases-june2026.md` - System packages, venv, git, CUDA, dashboard requirements
-- `nodes/README.md` - General node setup procedures (partially updated, see memory for specifics)
-- This file - Final status and configuration snapshots
-
-**Critical note**: Next bootstrap session should reference `/memories/repo/bootstrap-edge-cases-june2026.md` first
-
----
-
-## HISTORICAL NOTE: Previous Session Findings (Still Relevant)
+## Consolidation Notes
+- Active docs are now:
+  - `README.md`
+  - `AUTOMATION-GUIDE.md`
+  - `CURRENT-STATUS-COMPREHENSIVE.md`
+  - `nodes/README.md`
+- Legacy docs/scripts moved under:
+  - `docs/archive/`
+  - `scripts/archive/`
