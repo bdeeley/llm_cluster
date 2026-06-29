@@ -1,0 +1,39 @@
+{
+  "train_batch_size": 1,
+  "gradient_accumulation_steps": 1,
+  "optimizer": {
+    "type": "Adam",
+    "params": {
+      "lr": 1e-4
+    }
+  },
+  "zero_optimization": {
+    "stage": 3,
+    "offload_param": {
+      "device": "none"
+    },
+    "offload_optimizer": {
+      "device": "none"
+    },
+    "overlap_comm": true,
+    "contiguous_gradients": true,
+    "reduce_scatter": true,
+    "reduce_bucket_size": 2e8,
+    "allgather_bucket_size": 2e8
+  },
+  "fp16": {
+    "enabled": false,
+    "loss_scale": 0,
+    "loss_scale_window": 1000,
+    "initial_scale_power": 32,
+    "hysteresis": 2
+  },
+  "bfloat16": {
+    "enabled": true
+  },
+  "steps_per_print": 1,
+  "wall_clock_breakdown": false,
+  "data_types": {
+    "grad_accum_dtype": "float32"
+  }
+}
