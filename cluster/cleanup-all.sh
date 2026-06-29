@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # COMPLETE SESSION CLEANUP - Run this before any startup to ensure clean slate
-# This removes ALL exo state, event logs, and stale processes from all 4 nodes
+# This removes ALL exo state, event logs, and stale processes from active nodes
 
 set -e
 
-REMOTE_THEPLAGUE_IP="172.16.0.175"
-REMOTE_DEBIAN_IP="172.16.0.14"
-MASTER_IP="172.16.0.174"
+REMOTE_THEPLAGUE_IP="172.16.0.29"
+MASTER_IP="172.16.0.28"
 
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║          COMPLETE CLUSTER CLEANUP - ALL 4 NODES               ║"
+echo "║          COMPLETE CLUSTER CLEANUP - ACTIVE NODES              ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -82,43 +81,9 @@ THEPLAGUE_CLEANUP
 echo ""
 
 # ============================================================================
-# PHASE 3: DEBIAN CLEANUP (RTX 3090)
+# PHASE 3: VERIFICATION
 # ============================================================================
-echo "PHASE 3: REMOTE CLEANUP - Debian (${REMOTE_DEBIAN_IP})"
-echo "═══════════════════════════════════════════════════════════════════"
-
-ssh -o BatchMode=yes -o StrictHostKeyChecking=no bdeeley@${REMOTE_DEBIAN_IP} << 'DEBIAN_CLEANUP' 2>/dev/null || true
-  echo "  Stopping service..."
-  sudo systemctl stop exo.service 2>/dev/null || true
-  sleep 1
-  
-  echo "  Force killing processes..."
-  sudo pkill -9 exo || true
-  sudo pkill -9 "uv run" || true
-  sudo pkill -9 resource_tracker || true
-  sleep 1
-  
-  echo "  Killing cluster ports..."
-  sudo fuser -k 52415/tcp 2>/dev/null || true
-  sudo fuser -k 5679/tcp 2>/dev/null || true
-  sleep 1
-  
-  echo "  Removing event logs and caches..."
-  rm -rf ~/.local/share/exo/event_log* 2>/dev/null || true
-  rm -rf ~/.cache/exo* 2>/dev/null || true
-  
-  echo "  Clearing node keypair state..."
-  rm -f ~/.config/exo/node_id-*.keypair.state 2>/dev/null || true
-  
-  echo "  ✓ Debian cleanup complete"
-DEBIAN_CLEANUP
-
-echo ""
-
-# ============================================================================
-# PHASE 4: VERIFICATION
-# ============================================================================
-echo "PHASE 4: VERIFICATION"
+echo "PHASE 3: VERIFICATION"
 echo "═══════════════════════════════════════════════════════════════════"
 
 echo "  Verifying no exo processes running..."
@@ -134,13 +99,6 @@ if [ "$THEPLAGUE_PROCS" -eq 0 ]; then
     echo "  ✓ Theplague: No exo processes"
 else
     echo "  ✗ Theplague: Still has $THEPLAGUE_PROCS exo processes"
-fi
-
-DEBIAN_PROCS=$(ssh -o BatchMode=yes bdeeley@${REMOTE_DEBIAN_IP} 'ps aux | grep -E "exo|uv run" | grep -v grep | wc -l' 2>/dev/null || echo "?")
-if [ "$DEBIAN_PROCS" -eq 0 ]; then
-    echo "  ✓ Debian: No exo processes"
-else
-    echo "  ✗ Debian: Still has $DEBIAN_PROCS exo processes"
 fi
 
 echo ""

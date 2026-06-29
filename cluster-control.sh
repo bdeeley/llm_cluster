@@ -28,14 +28,42 @@ log_success() { echo -e "${GREEN}[✓]${NC} $*"; }
 log_warning() { echo -e "${YELLOW}[⚠]${NC} $*"; }
 log_error() { echo -e "${RED}[✗]${NC} $*"; }
 
+ssh_run() {
+  local host="$1"
+  shift
+  local cmd="$*"
+
+  if [ "$host" = "$MASTER_IP" ]; then
+    ssh -o BatchMode=yes -o ConnectTimeout=5 "bdeeley@$host" "$cmd"
+  else
+    # Manage remote nodes via maxpower as jump host when controller lacks direct access.
+    ssh -o BatchMode=yes -o ConnectTimeout=5 "bdeeley@$MASTER_IP" \
+      "ssh -o BatchMode=yes -o ConnectTimeout=5 bdeeley@$host '$cmd'"
+  fi
+}
+
+require_ssh() {
+  local node_name="$1"
+  local node_ip="$2"
+
+  if ! ssh_run "$node_ip" "echo ok" >/dev/null 2>&1; then
+    log_error "SSH preflight failed for $node_name ($node_ip)."
+    log_error "Fix known_hosts/auth first (host key mismatch or missing key access)."
+    return 1
+  fi
+
+  return 0
+}
+
 # ============================================================================
 # Port and Process Management Functions
 # ============================================================================
 
 check_ports() {
   local node_name="$1"
-  local api_port="$2"
-  local libp2p_port="$3"
+  local node_ip="$2"
+  local api_port="$3"
+  local libp2p_port="$4"
   
   local in_use=0
   
@@ -50,15 +78,13 @@ check_ports() {
       in_use=1
     fi
   else
-    # Check remote ports via SSH
-    if ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$node_name" \
-      "sudo lsof -i :${api_port} > /dev/null 2>&1" 2>/dev/null; then
-      log_warning "Port $api_port (API) in use on $node_name"
+    # Check remote ports via SSH using IP
+    if ssh_run "$node_ip" "sudo lsof -i :${api_port} > /dev/null 2>&1" 2>/dev/null; then
+      log_warning "Port $api_port (API) in use on $node_name ($node_ip)"
       in_use=1
     fi
-    if ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$node_name" \
-      "sudo lsof -i :${libp2p_port} > /dev/null 2>&1" 2>/dev/null; then
-      log_warning "Port $libp2p_port (libp2p) in use on $node_name"
+    if ssh_run "$node_ip" "sudo lsof -i :${libp2p_port} > /dev/null 2>&1" 2>/dev/null; then
+      log_warning "Port $libp2p_port (libp2p) in use on $node_name ($node_ip)"
       in_use=1
     fi
   fi
@@ -68,9 +94,10 @@ check_ports() {
 
 cleanup_ports() {
   local node_name="$1"
-  local api_port="$2"
+  local node_ip="$2"
+  local api_port="$3"
   
-  log_warning "Cleaning up stuck processes on $node_name..."
+  log_warning "Cleaning up stuck processes on $node_name ($node_ip)..."
   
   if [ "$node_name" = "local" ]; then
     # Kill stuck exo processes locally
@@ -80,12 +107,10 @@ cleanup_ports() {
       sleep 1
     fi
   else
-    # Kill stuck exo processes on remote
-    if ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$node_name" \
-      "sudo lsof -i :${api_port} > /dev/null 2>&1" 2>/dev/null; then
+    # Kill stuck exo processes on remote using IP
+    if ssh_run "$node_ip" "sudo lsof -i :${api_port} > /dev/null 2>&1" 2>/dev/null; then
       log_info "  Killing stuck exo process on $node_name:$api_port..."
-      ssh -o BatchMode=yes "bdeeley@$node_name" \
-        "sudo killall -9 exo 2>/dev/null || true" 2>/dev/null
+      ssh_run "$node_ip" "sudo killall -9 exo 2>/dev/null || true" 2>/dev/null
       sleep 1
     fi
   fi
@@ -94,8 +119,7 @@ cleanup_ports() {
   if [ "$node_name" = "local" ]; then
     sudo systemctl reset-failed exo.service exo-worker.service 2>/dev/null || true
   else
-    ssh -o BatchMode=yes "bdeeley@$node_name" \
-      "sudo systemctl reset-failed exo.service 2>/dev/null || true" 2>/dev/null
+    ssh_run "$node_ip" "sudo systemctl reset-failed exo.service 2>/dev/null || true" 2>/dev/null
   fi
   
   log_success "  Cleanup complete on $node_name"
@@ -108,38 +132,24 @@ verify_ports_free() {
   local all_free=true
   
   # Check local ports
-  if ! check_ports "local" 52415 5678; then
-    cleanup_ports "local" 52415
+  if ! check_ports "local" "" 52415 5678; then
+    cleanup_ports "local" "" 52415
     all_free=false
   fi
-  if ! check_ports "local" 52416 5680; then
-    cleanup_ports "local" 52416
+  if ! check_ports "local" "" 52416 5680; then
+    cleanup_ports "local" "" 52416
     all_free=false
   fi
   
   # Check remote ports
-  while IFS=: read -r node_name node_ip api_port; do
+  while IFS=: read -r node_name node_ip libp2p_port; do
     node_name=$(echo "$node_name" | xargs)
-    
-    # Determine libp2p port based on node
-    case "$node_name" in
-      theplague)
-        libp2p_port=5679
-        ;;
-      debian)
-        libp2p_port=5679
-        ;;
-      *)
-        continue
-        ;;
-    esac
-    
-    if ! check_ports "$node_name" "$api_port" "$libp2p_port"; then
-      cleanup_ports "$node_name" "$api_port"
+
+    if ! check_ports "$node_name" "$node_ip" 52415 "$libp2p_port"; then
+      cleanup_ports "$node_name" "$node_ip" 52415
       all_free=false
     fi
-  done <<< "theplague:172.16.0.175:52417
-debian:172.16.0.14:52418"
+  done <<< "$REMOTE_NODES"
   
   if [ "$all_free" = true ]; then
     log_success "All ports verified as free"
@@ -157,6 +167,14 @@ start_cluster() {
   echo -e "${BLUE}STARTING CLUSTER${NC}"
   echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
   
+  log_info "Running SSH preflight..."
+  require_ssh "maxpower" "$MASTER_IP" || return 1
+  while IFS=: read -r node_name node_ip node_port; do
+    node_name=$(echo "$node_name" | xargs)
+    require_ssh "$node_name" "$node_ip" || return 1
+  done <<< "$REMOTE_NODES"
+  log_success "SSH preflight passed"
+
   # Verify all ports are free (cleanup if needed)
   verify_ports_free
   
@@ -165,26 +183,23 @@ start_cluster() {
   while IFS=: read -r node_name node_ip node_port; do
     node_name=$(echo "$node_name" | xargs)
     log_info "  Starting $node_name..."
-    ssh -o BatchMode=yes -o ConnectTimeout=5 "bdeeley@$node_name" \
-      "sudo systemctl daemon-reload && sudo systemctl start exo.service" 2>/dev/null &
+    ssh_run "$node_ip" "sudo systemctl daemon-reload && sudo systemctl start exo.service" >/dev/null
   done <<< "$REMOTE_NODES"
-  wait
   log_success "Remote nodes started"
   
   # Wait for remote discovery
   log_info "Waiting 15 seconds for remote peer discovery..."
   sleep 15
   
-  # Start local master
-  log_info "Starting LOCAL MASTER..."
-  sudo systemctl daemon-reload
-  sudo systemctl start exo.service
+  # Start local master (on maxpower via SSH)
+  log_info "Starting LOCAL MASTER (on $MASTER_IP)..."
+  ssh_run "$MASTER_IP" "sudo systemctl daemon-reload && sudo systemctl start exo.service" >/dev/null
   sleep 5
   log_success "Master started"
   
-  # Start local worker
-  log_info "Starting LOCAL WORKER..."
-  sudo systemctl start exo-worker.service
+  # Start local worker (on maxpower via SSH)
+  log_info "Starting LOCAL WORKER (on $MASTER_IP)..."
+  ssh_run "$MASTER_IP" "sudo systemctl start exo-worker.service" >/dev/null
   sleep 5
   log_success "Worker started"
   
@@ -195,8 +210,8 @@ start_cluster() {
   # Check final topology
   echo ""
   log_info "Final cluster topology:"
-  curl -s http://localhost:52415/state 2>/dev/null | \
-    jq '{nodes: (.nodeIdentities | length), edges: (.topology.connections | keys | length)}' || echo "  API not responding yet"
+  ssh_run "$MASTER_IP" "curl -s http://localhost:52415/state" 2>/dev/null | \
+    jq '{nodes: (.nodeIdentities | length), edges: (.topology.connections | keys | length)}' || echo "  API not responding yet on maxpower"
   
   echo ""
   echo -e "${GREEN}✓ CLUSTER STARTED${NC}"
@@ -207,17 +222,15 @@ stop_cluster() {
   echo -e "${BLUE}STOPPING CLUSTER${NC}"
   echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
   
-  log_info "Stopping LOCAL SERVICES..."
-  sudo systemctl stop exo-worker.service exo.service 2>/dev/null || true
+  log_info "Stopping LOCAL SERVICES (on $MASTER_IP)..."
+  ssh_run "$MASTER_IP" "sudo systemctl stop exo-worker.service exo.service" >/dev/null
   log_success "Local services stopped"
   
   log_info "Stopping REMOTE NODES..."
   while IFS=: read -r node_name node_ip node_port; do
     node_name=$(echo "$node_name" | xargs)
-    ssh -o BatchMode=yes -o ConnectTimeout=5 "bdeeley@$node_name" \
-      "sudo systemctl stop exo.service" 2>/dev/null &
+    ssh_run "$node_ip" "sudo systemctl stop exo.service" >/dev/null
   done <<< "$REMOTE_NODES"
-  wait
   log_success "Remote nodes stopped"
   
   # Cleanup any stuck processes
@@ -240,22 +253,26 @@ status_cluster() {
   echo -e "${BLUE}CLUSTER STATUS${NC}"
   echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
   
-  # Local status
+  # Local status (on maxpower via SSH)
   echo ""
-  log_info "LOCAL SERVICES:"
+  log_info "LOCAL SERVICES (on $MASTER_IP):"
   
   echo -n "  exo.service (master): "
-  if systemctl is-active exo.service > /dev/null 2>&1; then
+  status=$(ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$MASTER_IP" \
+    "systemctl is-active exo.service 2>/dev/null" 2>/dev/null || echo "UNKNOWN")
+  if [ "$status" = "active" ]; then
     echo -e "${GREEN}ACTIVE${NC}"
   else
-    echo -e "${RED}INACTIVE${NC}"
+    echo -e "${RED}$status${NC}"
   fi
   
   echo -n "  exo-worker.service (worker): "
-  if systemctl is-active exo-worker.service > /dev/null 2>&1; then
+  status=$(ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$MASTER_IP" \
+    "systemctl is-active exo-worker.service 2>/dev/null" 2>/dev/null || echo "UNKNOWN")
+  if [ "$status" = "active" ]; then
     echo -e "${GREEN}ACTIVE${NC}"
   else
-    echo -e "${RED}INACTIVE${NC}"
+    echo -e "${RED}$status${NC}"
   fi
   
   # Remote status
@@ -264,8 +281,7 @@ status_cluster() {
   while IFS=: read -r node_name node_ip node_port; do
     node_name=$(echo "$node_name" | xargs)
     echo -n "  $node_name ($node_ip): "
-    status=$(ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$node_name" \
-      "systemctl is-active exo.service 2>/dev/null" 2>/dev/null || echo "UNKNOWN")
+    status=$(ssh_run "$node_ip" "systemctl is-active exo.service 2>/dev/null" 2>/dev/null || echo "UNKNOWN")
     if [ "$status" = "active" ]; then
       echo -e "${GREEN}ACTIVE${NC}"
     else
@@ -277,15 +293,15 @@ status_cluster() {
   echo ""
   log_info "API CONNECTIVITY:"
   
-  echo -n "  Master API (localhost:52415): "
-  if curl -s http://localhost:52415/node_id > /dev/null 2>&1; then
+  echo -n "  Master API (maxpower:52415): "
+  if ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$MASTER_IP" "curl -s http://localhost:52415/node_id > /dev/null" 2>/dev/null; then
     echo -e "${GREEN}✓${NC}"
   else
     echo -e "${RED}✗${NC}"
   fi
   
-  echo -n "  Worker API (localhost:52416): "
-  if curl -s http://localhost:52416/node_id > /dev/null 2>&1; then
+  echo -n "  Worker API (maxpower:52416): "
+  if ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$MASTER_IP" "curl -s http://localhost:52416/node_id > /dev/null" 2>/dev/null; then
     echo -e "${GREEN}✓${NC}"
   else
     echo -e "${RED}✗${NC}"
@@ -294,9 +310,9 @@ status_cluster() {
   # Cluster topology
   echo ""
   log_info "CLUSTER TOPOLOGY:"
-  curl -s http://localhost:52415/state 2>/dev/null | \
+  ssh -o BatchMode=yes -o ConnectTimeout=2 "bdeeley@$MASTER_IP" "curl -s http://localhost:52415/state" 2>/dev/null | \
     jq '{nodes: (.nodeIdentities | length), edges: (.topology.connections | keys | length), instances: (.instances | length), runners: (.runners | length)}' || \
-    echo "  Unable to retrieve topology"
+    echo "  Unable to retrieve topology from maxpower"
 }
 
 logs_cluster() {
@@ -304,11 +320,11 @@ logs_cluster() {
   echo ""
   
   echo -e "${YELLOW}Master logs (last 50 lines):${NC}"
-  sudo journalctl -u exo.service -n 50 --no-pager | tail -20
+  ssh_run "$MASTER_IP" "sudo journalctl -u exo.service -n 50 --no-pager" | tail -20
   
   echo ""
   echo -e "${YELLOW}Worker logs (last 50 lines):${NC}"
-  sudo journalctl -u exo-worker.service -n 50 --no-pager | tail -20
+  ssh_run "$MASTER_IP" "sudo journalctl -u exo-worker.service -n 50 --no-pager" | tail -20
 }
 
 ports_cluster() {

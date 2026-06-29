@@ -103,7 +103,7 @@ generate_service_file() {
   
   case "$type" in
     master)
-      cat > /tmp/exo.service << 'EOF'
+      cat > /tmp/exo.service << EOF
 [Unit]
 Description=exo distributed LLM inference (Master)
 After=network-online.target
@@ -126,7 +126,7 @@ Environment="OVERRIDE_MEMORY_MB=24000"
 Environment="HF_TOKEN=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"
 Environment="EXO_NODE_ID_KEYPAIR_PATH=/home/bdeeley/.config/exo/node_id-primary.keypair"
 Environment="RUST_LOG=info"
-ExecStart=/home/bdeeley/.local/bin/uv run exo --force-master --api-port 52415 --libp2p-port 5678 --bootstrap-peers /ip4/172.16.0.174/tcp/5678,/ip4/172.16.0.174/tcp/5680,/ip4/172.16.0.175/tcp/5679,/ip4/172.16.0.14/tcp/5679
+ExecStart=/home/bdeeley/.local/bin/uv run exo --force-master --api-port 52415 --libp2p-port 5678 --bootstrap-peers ${BOOTSTRAP_PEERS}
 
 Restart=on-failure
 RestartSec=10
@@ -137,7 +137,7 @@ EOF
       ;;
       
     worker)
-      cat > /tmp/exo-worker.service << 'EOF'
+      cat > /tmp/exo-worker.service << EOF
 [Unit]
 Description=exo distributed LLM inference (Worker)
 After=network-online.target exo.service
@@ -160,7 +160,7 @@ Environment="LD_LIBRARY_PATH=/home/bdeeley/exo/.venv/lib/python3.13/site-package
 Environment="OVERRIDE_MEMORY_MB=20000"
 Environment="HF_TOKEN=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"
 Environment="RUST_LOG=info"
-ExecStart=/home/bdeeley/.local/bin/uv run exo --api-port 52416 --libp2p-port 5680 --bootstrap-peers /ip4/172.16.0.174/tcp/5678,/ip4/172.16.0.174/tcp/5680,/ip4/172.16.0.175/tcp/5679,/ip4/172.16.0.14/tcp/5679
+ExecStart=/home/bdeeley/.local/bin/uv run exo --api-port 52416 --libp2p-port 5680 --bootstrap-peers ${BOOTSTRAP_PEERS}
 
 Restart=on-failure
 RestartSec=10
@@ -193,7 +193,7 @@ Environment="LD_LIBRARY_PATH=/home/bdeeley/exo/.venv/lib/python3.13/site-package
 Environment="OVERRIDE_MEMORY_MB=20000"
 Environment="HF_TOKEN=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"
 Environment="RUST_LOG=info"
-ExecStart=/home/bdeeley/.local/bin/uv run exo --api-port 52415 --libp2p-port 5679 --bootstrap-peers /ip4/172.16.0.174/tcp/5678,/ip4/172.16.0.174/tcp/5680,/ip4/172.16.0.175/tcp/5679,/ip4/172.16.0.14/tcp/5679
+ExecStart=/home/bdeeley/.local/bin/uv run exo --api-port 52415 --libp2p-port 5679 --bootstrap-peers ${BOOTSTRAP_PEERS}
 
 Restart=on-failure
 RestartSec=10

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Comprehensive Log Monitoring Script for 4-Node EXO Cluster
+# Comprehensive Log Monitoring Script for active EXO cluster
 # Shows all [TASK DISPATCH], [RUNNER], [RANK], and diagnostic messages in real-time
 # Usage: ./monitor-logs.sh
 
@@ -9,7 +9,7 @@ set -e
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║  EXO CLUSTER LOG MONITORING SYSTEM                            ║"
 echo "║  Capturing: Task Dispatch | Runner Events | Distributed Init  ║"
-echo "║  Nodes: maxpower (master+worker) | theplague | debian         ║"
+echo "║  Nodes: maxpower (master+worker) | theplague                  ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 echo "Starting log monitors in background..."
@@ -47,8 +47,7 @@ monitor_service() {
 # Start monitors
 monitor_service "exo.service" "local" "$LOG_DIR/master.log"
 monitor_service "exo-worker.service" "local" "$LOG_DIR/worker.log"
-monitor_service "exo.service" "172.16.0.175" "$LOG_DIR/theplague.log"
-monitor_service "exo.service" "172.16.0.14" "$LOG_DIR/debian.log"
+monitor_service "exo.service" "172.16.0.29" "$LOG_DIR/theplague.log"
 
 sleep 1
 

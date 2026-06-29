@@ -139,7 +139,7 @@ diagnose_remote() {
     
     echo "1. CONNECTIVITY"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    if ssh -o ConnectTimeout=2 -o BatchMode=yes "bdeeley@$node_name" "echo '✓ SSH connection OK'" 2>/dev/null; then
+    if ssh -o ConnectTimeout=2 -o BatchMode=yes "bdeeley@$node_ip" "echo '✓ SSH connection OK'" 2>/dev/null; then
       echo ""
     else
       echo "ERROR: Cannot SSH to $node_name"
@@ -148,26 +148,26 @@ diagnose_remote() {
     
     echo "2. PYTHON ENVIRONMENT"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    ssh -o BatchMode=yes "bdeeley@$node_name" \
+    ssh -o BatchMode=yes "bdeeley@$node_ip" \
       "/home/bdeeley/exo/.venv/bin/python3 --version 2>&1 && /home/bdeeley/exo/.venv/bin/python3 -c 'import mlx.core; print(\"✓ MLX imported\")' 2>&1" || \
       echo "ERROR: MLX import failed"
     echo ""
     
     echo "3. NVIDIA SETUP"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    ssh -o BatchMode=yes "bdeeley@$node_name" \
+    ssh -o BatchMode=yes "bdeeley@$node_ip" \
       "nvidia-smi --query-gpu=index,name,memory.total,memory.used --format=csv 2>/dev/null || echo 'ERROR: nvidia-smi failed'" || true
     echo ""
     
     echo "4. SERVICE STATUS"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    ssh -o BatchMode=yes "bdeeley@$node_name" \
+    ssh -o BatchMode=yes "bdeeley@$node_ip" \
       "systemctl status exo.service 2>/dev/null | head -10" || echo "ERROR: Service not found"
     echo ""
     
     echo "5. RECENT LOGS"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    ssh -o BatchMode=yes "bdeeley@$node_name" \
+    ssh -o BatchMode=yes "bdeeley@$node_ip" \
       "sudo journalctl -u exo.service -n 30 --no-pager 2>/dev/null | head -40" || echo "ERROR: Cannot read logs"
     echo ""
     
